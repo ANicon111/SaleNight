@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:salenight/logic.dart';
 
+//TODO not broken keyboard detector
+
 void main() {
   runApp(const GameRoot());
 }
@@ -31,23 +33,21 @@ class GameRenderer extends StatefulWidget {
 class _GameRendererState extends State<GameRenderer> {
   //TODO implement variable fps
   int framesPerSecond = 30;
-  Timer? phisicsTimer, refreshTimer;
-  PlayerPos playerPos = PlayerPos()
-    ..dynamicFrictionX = 0.01
-    ..dynamicFrictionY = 0.01;
+  Timer? refreshTimer;
 
-  void _doTick(var _) {
-    print(playerPos);
-    playerPos.y[2] = 0.01;
-    playerPos.update();
-  }
+  //TODO actual level design lol
+  PhisicsEngine simulation = PhisicsEngine()
+    ..fluidFriction = 0.001
+    ..gameObjects = [
+      GameObject(0, 100, 1000, 10, 200, 300),
+      GameObject(550, -100, 200, 10, 200, 300),
+    ];
+
+  int jumpTime = 0, movetime = 0;
+  bool isJumping = false;
 
   @override
   void initState() {
-    if (phisicsTimer?.isActive ?? true) {
-      phisicsTimer?.cancel();
-    }
-    phisicsTimer = Timer.periodic(const Duration(milliseconds: 5), _doTick);
     if (refreshTimer?.isActive ?? true) {
       refreshTimer?.cancel();
     }
@@ -62,7 +62,7 @@ class _GameRendererState extends State<GameRenderer> {
 
   @override
   void dispose() {
-    phisicsTimer?.cancel();
+    simulation.dispose();
     refreshTimer?.cancel();
     super.dispose();
   }
@@ -70,16 +70,22 @@ class _GameRendererState extends State<GameRenderer> {
   FocusNode focusNode = FocusNode();
   @override
   Widget build(BuildContext context) {
-    return KeyboardListener(
+    return RawKeyboardListener(
       autofocus: true,
-      onKeyEvent: (value) {
+      onKey: (value) {
         if (value.logicalKey == LogicalKeyboardKey.arrowUp) {
-          playerPos.y[2] = -0.1;
+          if (!isJumping) jumpTime = 20;
+        }
+        if (value.logicalKey == LogicalKeyboardKey.arrowLeft) {
+          movetime = 50;
+        }
+        if (value.logicalKey == LogicalKeyboardKey.arrowRight) {
+          movetime = -50;
         }
       },
       focusNode: focusNode,
       child: CustomPaint(
-        foregroundPainter: Painter(playerPos),
+        foregroundPainter: Painter(simulation),
         size: MediaQuery.of(context).size,
       ),
     );
@@ -87,8 +93,8 @@ class _GameRendererState extends State<GameRenderer> {
 }
 
 class Painter extends CustomPainter {
-  PlayerPos pos;
-  Painter(this.pos);
+  PhisicsEngine simulation;
+  Painter(this.simulation);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -97,12 +103,28 @@ class Painter extends CustomPainter {
     //draw player
     canvas.drawRect(
       Rect.fromCenter(
-          center: Offset(
-              size.width / 2 + pos.x[1] * 10, size.height / 2 + pos.y[1] * 10),
+          center: Offset(size.width / 2 + simulation.speedX * 0.01 * u,
+              size.height / 2 + simulation.speedY * 0.01 * u),
           width: 100 * u,
-          height: 50 * u),
-      Paint()..color = Colors.black,
+          height: 150 * u),
+      Paint()..color = Colors.red,
     );
+
+    //draw objects
+    for (GameObject obj in simulation.gameObjects) {
+      canvas.drawRect(
+        Rect.fromCenter(
+            center: Offset(
+              size.width / 2 +
+                  (obj.x + simulation.x + simulation.speedX * 0.01) * u,
+              size.height / 2 +
+                  (obj.y - simulation.y - simulation.speedY * 0.01) * u,
+            ),
+            width: obj.w * u,
+            height: obj.h * u),
+        Paint()..color = Colors.black,
+      );
+    }
   }
 
   @override
