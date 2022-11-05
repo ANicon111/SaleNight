@@ -1,10 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:salenight/logic.dart';
-
-//TODO not broken keyboard detector
 
 void main() {
   runApp(const GameRoot());
@@ -37,10 +34,56 @@ class _GameRendererState extends State<GameRenderer> {
 
   //TODO actual level design lol
   PhisicsEngine simulation = PhisicsEngine()
-    ..fluidFriction = 0.001
+    ..fluidFriction = 0.00002
+    ..w = 1
+    ..h = 1.5
+    ..walkAcceleration = 7.5
+    ..jumpAcceleration = 50
     ..gameObjects = [
-      GameObject(0, 100, 1000, 10, 200, 300),
-      GameObject(550, -100, 200, 10, 200, 300),
+      GameObject(
+        x: 0,
+        y: -2,
+        w: 20,
+        h: 0.1,
+        topFriction: 3,
+        sideFriction: 300,
+        xSpeedModifier: 1,
+        ySpeedModifier: 1,
+        color: Colors.black,
+      ),
+      GameObject(
+        x: 5,
+        y: -5,
+        w: 20,
+        h: 0.1,
+        topFriction: 0.1,
+        sideFriction: 300,
+        xSpeedModifier: 1,
+        ySpeedModifier: 1,
+        color: Colors.lightBlue,
+      ),
+      GameObject(
+        x: 5,
+        y: 1,
+        w: 20,
+        h: 0.1,
+        topFriction: 3,
+        sideFriction: 300,
+        xSpeedModifier: 0.5,
+        ySpeedModifier: 1,
+        color: Colors.green,
+      ),
+      GameObject(
+        x: -12,
+        y: -2,
+        w: 0.1,
+        h: 20,
+        topFriction: 3,
+        sideFriction: 300,
+        xSpeedModifier: 1,
+        ySpeedModifier: 1,
+        color: Colors.black,
+      ),
     ];
 
   int jumpTime = 0, movetime = 0;
@@ -57,6 +100,8 @@ class _GameRendererState extends State<GameRenderer> {
         setState(() {});
       },
     );
+    simulation.forces.forcesY["gravity"] =
+        Force(accelerationValue: -9.81, durationInTicks: -1);
     super.initState();
   }
 
@@ -70,24 +115,9 @@ class _GameRendererState extends State<GameRenderer> {
   FocusNode focusNode = FocusNode();
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
-      autofocus: true,
-      onKey: (value) {
-        if (value.logicalKey == LogicalKeyboardKey.arrowUp) {
-          if (!isJumping) jumpTime = 20;
-        }
-        if (value.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          movetime = 50;
-        }
-        if (value.logicalKey == LogicalKeyboardKey.arrowRight) {
-          movetime = -50;
-        }
-      },
-      focusNode: focusNode,
-      child: CustomPaint(
-        foregroundPainter: Painter(simulation),
-        size: MediaQuery.of(context).size,
-      ),
+    return CustomPaint(
+      foregroundPainter: Painter(simulation),
+      size: MediaQuery.of(context).size,
     );
   }
 }
@@ -103,10 +133,10 @@ class Painter extends CustomPainter {
     //draw player
     canvas.drawRect(
       Rect.fromCenter(
-          center: Offset(size.width / 2 + simulation.speedX * 0.01 * u,
-              size.height / 2 + simulation.speedY * 0.01 * u),
-          width: 100 * u,
-          height: 150 * u),
+          center: Offset(size.width / 2 + 64 * simulation.speedX * 0.02 * u,
+              size.height / 2 + 64 * simulation.speedY * 0.02 * u),
+          width: 64 * u * simulation.w,
+          height: 64 * u * simulation.h),
       Paint()..color = Colors.red,
     );
 
@@ -116,13 +146,13 @@ class Painter extends CustomPainter {
         Rect.fromCenter(
             center: Offset(
               size.width / 2 +
-                  (obj.x + simulation.x + simulation.speedX * 0.01) * u,
-              size.height / 2 +
-                  (obj.y - simulation.y - simulation.speedY * 0.01) * u,
+                  64 * (obj.x + simulation.x + simulation.speedX * 0.02) * u,
+              size.height / 2 -
+                  64 * (obj.y - simulation.y + simulation.speedY * 0.02) * u,
             ),
-            width: obj.w * u,
-            height: obj.h * u),
-        Paint()..color = Colors.black,
+            width: 64 * obj.w * u,
+            height: 64 * obj.h * u),
+        Paint()..color = obj.color,
       );
     }
   }
