@@ -90,7 +90,7 @@ class _GameRendererState extends State<GameRenderer> {
       fluidFriction: 0,
       spawnForces: ForceList(x: {}, y: {}),
     );
-    loadStage(stages["default"]!);
+    loadStage(stages["default"]!.copy);
     levelSelect = true;
     super.initState();
   }
@@ -211,7 +211,7 @@ class _GameRendererState extends State<GameRenderer> {
                                   ),
                                   child: InkWell(
                                     onTap: () {
-                                      loadStage(stages[stageSelector[i]]!);
+                                      loadStage(stages[stageSelector[i]]!.copy);
                                     },
                                     hoverColor: Colors.blueAccent,
                                     borderRadius: BorderRadius.circular(

@@ -22,6 +22,12 @@ class Stage {
     this.spawnX = 0,
     this.spawnY = 0,
   });
+  Stage get copy {
+    Stage copy = this;
+    copy.gameObjects =
+        List.generate(gameObjects.length, (index) => gameObjects[index].copy);
+    return copy;
+  }
 }
 
 //TODO actual level design and textures

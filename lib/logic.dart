@@ -12,8 +12,10 @@ class GameObject {
       sideSpeedCap,
       xSpeedModifier,
       ySpeedModifier,
-      bounceFactor;
+      bounceFactor,
+      fluidFriction;
   bool passthrough,
+      fluid,
       jumpable,
       sideJumpable,
       deadly,
@@ -21,34 +23,68 @@ class GameObject {
       checkpoint,
       visited = false;
   Color color;
+  String texture;
+  Force forceX, forceY;
   GameObject({
     required this.x,
     required this.y,
     required this.w,
     required this.h,
     this.topFriction = 0,
+    this.fluidFriction = 0,
     this.xSpeedModifier = 1,
     this.ySpeedModifier = 1,
     this.bounceFactor = 0,
+    this.forceX = const Force(accelerationValue: 0, durationInTicks: 0),
+    this.forceY = const Force(accelerationValue: 0, durationInTicks: 0),
     this.sideSpeedCap = PhisicsEngine.speedCap,
     this.color = Colors.black,
+    this.texture = "",
     this.passthrough = false,
     this.jumpable = true,
     this.sideJumpable = true,
     this.deadly = false,
     this.shop = false,
     this.checkpoint = false,
+    this.fluid = false,
   });
-  //TODO operator =
+  GameObject get copy {
+    return GameObject(
+      x: x,
+      y: y,
+      w: w,
+      h: h,
+      topFriction: topFriction,
+      fluidFriction: fluidFriction,
+      xSpeedModifier: xSpeedModifier,
+      ySpeedModifier: ySpeedModifier,
+      bounceFactor: bounceFactor,
+      sideSpeedCap: sideSpeedCap,
+      color: color,
+      texture: texture,
+      passthrough: passthrough,
+      jumpable: jumpable,
+      sideJumpable: sideJumpable,
+      deadly: deadly,
+      shop: shop,
+      checkpoint: checkpoint,
+      fluid: fluid,
+      forceX: forceX.copy,
+      forceY: forceY.copy,
+    );
+  }
 }
 
 class Force {
-  double accelerationValue;
-  int durationInTicks;
-  Force({
+  final double accelerationValue;
+  final int durationInTicks;
+  const Force({
     this.accelerationValue = 0,
     this.durationInTicks = 0,
   });
+
+  get copy => Force(
+      accelerationValue: accelerationValue, durationInTicks: durationInTicks);
 
   @override
   String toString() {
@@ -69,12 +105,20 @@ class ForceList {
   void trim() {
     List<String> list = x.keys.toList();
     for (String i in list) {
-      if (x[i]!.durationInTicks > 0) x[i]!.durationInTicks--;
+      if (x[i]!.durationInTicks > 0) {
+        x[i] = Force(
+            accelerationValue: x[i]!.accelerationValue,
+            durationInTicks: x[i]!.durationInTicks - 1);
+      }
       if (x[i]!.durationInTicks == 0) x.remove(i);
     }
     list = y.keys.toList();
     for (String i in list) {
-      if (y[i]!.durationInTicks > 0) y[i]!.durationInTicks--;
+      if (y[i]!.durationInTicks > 0) {
+        y[i] = Force(
+            accelerationValue: y[i]!.accelerationValue,
+            durationInTicks: y[i]!.durationInTicks - 1);
+      }
       if (y[i]!.durationInTicks == 0) y.remove(i);
     }
   }
