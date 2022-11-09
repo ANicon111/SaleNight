@@ -8,16 +8,18 @@ class GameObject {
       y,
       w,
       h,
-      topFriction,
-      sideSpeedCap,
-      xSpeedModifier,
-      ySpeedModifier,
+      friction,
+      speedCapX,
+      speedCapY,
+      speedModifierX,
+      speedModifierY,
       bounceFactor,
       fluidFriction;
   bool passthrough,
-      fluid,
+      translucent,
       jumpable,
       sideJumpable,
+      walkable,
       deadly,
       shop,
       checkpoint,
@@ -30,23 +32,25 @@ class GameObject {
     required this.y,
     required this.w,
     required this.h,
-    this.topFriction = 0,
+    this.friction = 0,
     this.fluidFriction = 0,
-    this.xSpeedModifier = 1,
-    this.ySpeedModifier = 1,
+    this.speedModifierX = 1,
+    this.speedModifierY = 1,
     this.bounceFactor = 0,
     this.forceX = const Force(accelerationValue: 0, durationInTicks: 0),
     this.forceY = const Force(accelerationValue: 0, durationInTicks: 0),
-    this.sideSpeedCap = PhisicsEngine.speedCap,
+    this.speedCapX = PhisicsEngine.speedCap,
+    this.speedCapY = PhisicsEngine.speedCap,
     this.color = Colors.black,
     this.texture = "",
     this.passthrough = false,
     this.jumpable = true,
     this.sideJumpable = true,
+    this.walkable = true,
     this.deadly = false,
     this.shop = false,
     this.checkpoint = false,
-    this.fluid = false,
+    this.translucent = false,
   });
   GameObject get copy {
     return GameObject(
@@ -54,21 +58,23 @@ class GameObject {
       y: y,
       w: w,
       h: h,
-      topFriction: topFriction,
+      friction: friction,
       fluidFriction: fluidFriction,
-      xSpeedModifier: xSpeedModifier,
-      ySpeedModifier: ySpeedModifier,
+      speedModifierX: speedModifierX,
+      speedModifierY: speedModifierY,
       bounceFactor: bounceFactor,
-      sideSpeedCap: sideSpeedCap,
+      speedCapX: speedCapX,
+      speedCapY: speedCapY,
       color: color,
       texture: texture,
       passthrough: passthrough,
       jumpable: jumpable,
       sideJumpable: sideJumpable,
+      walkable: walkable,
       deadly: deadly,
       shop: shop,
       checkpoint: checkpoint,
-      fluid: fluid,
+      translucent: translucent,
       forceX: forceX.copy,
       forceY: forceY.copy,
     );
@@ -162,6 +168,24 @@ class PhisicsEngine {
   //keyboard
   RawKeyboard? keyboard;
 
+  //movement chacks
+
+  bool get _right =>
+      keyboard != null &&
+      keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowRight);
+
+  bool get _left =>
+      keyboard != null &&
+      keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowLeft);
+
+  bool get _down =>
+      keyboard != null &&
+      keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowDown);
+
+  bool get _up =>
+      keyboard != null &&
+      keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowUp);
+
   //simulation rate TODO variable sim rate with a minimum of 144 a second
   int simulationRate = 144;
 
@@ -187,6 +211,9 @@ class PhisicsEngine {
   //walk acceleration and jump acceleration
   double walkAcceleration;
   double jumpAcceleration;
+
+  //jump cooldown
+  int jumpCooldown = 0;
 
   //objects: things that collide with the player
   List<GameObject> gameObjects;
@@ -219,8 +246,6 @@ class PhisicsEngine {
     phisicsTimer?.cancel();
   }
 
-  //TODO implement logic :)
-
   //respawn function
   void respawn() {
     forces = spawnForces;
@@ -233,18 +258,16 @@ class PhisicsEngine {
   //function run every tick
   void _doTick(var _) {
     //walk/slide speed modifier
-    double speedModifierX = 1, speedModifierY = 1;
+    double speedModifierX = 1,
+        speedModifierY = 1,
+        fluidFriction = this.fluidFriction;
 
     //set walk direction: -1, 0 or 1
     int walkDirection = 0;
-    if (keyboard != null &&
-        keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowLeft) &&
-        !keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
+    if (_left && !_right) {
       walkDirection = 1;
     }
-    if (keyboard != null &&
-        !keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowLeft) &&
-        keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
+    if (!_left && _right) {
       walkDirection = -1;
     }
 
@@ -278,9 +301,11 @@ class PhisicsEngine {
           continue;
         }
 
+        //visit object
+        obj.visited = true;
+
         //flag handling
         if (obj.shop) {
-          obj.visited = true;
           bool allShopsVisited() {
             for (GameObject obj in gameObjects) {
               if (obj.shop && !obj.visited) return false;
@@ -288,43 +313,72 @@ class PhisicsEngine {
             return true;
           }
 
-          if (allShopsVisited()) onGameOver();
+          if (obj.visited && allShopsVisited()) onGameOver();
+          continue;
+        }
+
+        //apply speed caps
+        if (speedCapX > obj.speedCapX) {
+          speedCapX = obj.speedCapX;
+        }
+        if (speedCapY > obj.speedCapY) {
+          speedCapY = obj.speedCapY;
+        }
+
+        //apply object forces
+        forces.x["translucent"] = obj.forceX;
+        forces.y["translucent"] = obj.forceY;
+
+        //translucent handling
+        if (obj.translucent) {
+          fluidFriction = obj.fluidFriction;
+
+          if (obj.jumpable &&
+              _up &&
+              y < topOfObject - safeDistance &&
+              y > bottomOfObject + safeDistance &&
+              x < leftOfObject + safeDistance &&
+              x > rightOfObject - safeDistance) {
+            _jumpUp();
+          }
           continue;
         }
 
         //deadly object handling
         if (obj.deadly) {
           respawn();
-          obj.visited = true;
           break;
         }
 
-        obj.visited = true;
-        //on top of object
+        //bottom collision
         if (topOfObject < bottomOfPlayer + safeDistance) {
-          speedModifierX *= obj.xSpeedModifier;
+          //apply relevant speed modifier
+          speedModifierX *= obj.speedModifierX;
+
+          //stop walking if disabled
+          if (!obj.walkable) walkDirection = 0;
 
           //go through the object if down key is pressed
-          if (keyboard != null &&
-              keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowDown) &&
-              obj.passthrough) {
+          if (_down && obj.passthrough) {
             y -= safeDistance;
             continue;
+          }
+
+          //bounce / stop
+          if (speedY <= 0) {
+            y = topOfObject + h / 2;
+            if (speedY <= -2 * safeDistance && !_down) {
+              speedY *= -obj.bounceFactor;
+            } else {
+              speedY /= collisionStoppingFactor;
+            }
           }
 
           //apply normal force
           forces.y["normal"] =
               Force(accelerationValue: -forces.getY, durationInTicks: 1);
 
-          if (speedY <= 0) {
-            y = topOfObject + h / 2;
-            if (speedY <= -2 * safeDistance) {
-              speedY *= -obj.bounceFactor;
-            } else {
-              speedY /= collisionStoppingFactor;
-            }
-          }
-          //apply friction
+          //apply surface friction
           if (forces.y["normal"]!.accelerationValue *
                       speedX.abs() *
                       speedModifierX >=
@@ -333,44 +387,71 @@ class PhisicsEngine {
             double temp = speedX.sign;
             speedX -= 2 *
                 forces.y["normal"]!.accelerationValue *
-                obj.topFriction *
+                obj.friction *
                 speedX.sign /
                 simulationRate;
             if (temp * speedX.sign == -1) speedX = 0;
           }
           //jump if up key is pressed
-          if (keyboard != null &&
-              keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowUp) &&
-              obj.jumpable) {
+          if (_up && obj.jumpable) {
             speedY = 0;
-            y += 0.01;
             _jumpUp();
           }
         } else
         //top collision
         if (topOfPlayer <= bottomOfObject + safeDistance && !obj.passthrough) {
-          speedY /= collisionStoppingFactor;
+          //apply relevant speed modifier
+          speedModifierX *= obj.speedModifierX;
+
+          //bounce / stop
+          if (speedY >= 0) {
+            y = bottomOfObject - h / 2;
+            if (speedY >= 2 * safeDistance && !_down) {
+              speedY *= -obj.bounceFactor;
+            } else {
+              speedY /= collisionStoppingFactor;
+            }
+          }
+
           y = bottomOfObject - h / 2;
         } else
         //right collision
         if (rightOfPlayer >= leftOfObject + safeDistance && !obj.passthrough) {
-          if (speedX < 0) speedX /= collisionStoppingFactor;
+          //apply relevant speed modifier
+          speedModifierY *= obj.speedModifierY;
+
+          //bounce / stop
+          if (speedX <= 0) {
+            x = leftOfObject + w / 2;
+            if (speedX <= -2 * safeDistance && !_right) {
+              speedX *= -obj.bounceFactor;
+            } else {
+              speedX /= collisionStoppingFactor;
+            }
+          }
+
           x = leftOfObject + w / 2;
-          speedCapY = obj.sideSpeedCap;
-          if (keyboard != null &&
-              keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowUp) &&
-              obj.sideJumpable) {
+          if (_up && obj.sideJumpable) {
             _jumpLeft();
           }
         } else
         //left collision
         if (rightOfObject >= leftOfPlayer - safeDistance && !obj.passthrough) {
-          if (speedX > 0) speedX /= collisionStoppingFactor;
+          //apply relevant speed modifier
+          speedModifierY *= obj.speedModifierY;
+
+          //bounce / stop
+          if (speedX >= 0) {
+            x = rightOfObject - w / 2;
+            if (speedX >= 2 * safeDistance && !_left) {
+              speedX *= -obj.bounceFactor;
+            } else {
+              speedX /= collisionStoppingFactor;
+            }
+          }
+
           x = rightOfObject - w / 2;
-          speedCapY = obj.sideSpeedCap;
-          if (keyboard != null &&
-              keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowUp) &&
-              obj.sideJumpable) {
+          if (_up && obj.sideJumpable) {
             _jumpRight();
           }
         }
@@ -380,23 +461,13 @@ class PhisicsEngine {
     walk(walkDirection, speedModifierX);
 
     //if jump key no longer held, remove accelerations
-    if (keyboard != null &&
-        !keyboard!.keysPressed.contains(LogicalKeyboardKey.arrowUp)) {
+    if (!_up) {
       forces.x.remove("jump");
       forces.y.remove("jump");
     }
 
     //apply forces and friction to the speeds, cap them
     //then apply the speeds to coordinates
-    coordinateCalculation(speedModifierX, speedModifierY, speedCapX, speedCapY);
-
-    //remove forces done applying
-    forces.trim();
-  }
-
-  void coordinateCalculation(double speedModifierX, double speedModifierY,
-      double speedCapX, double speedCapY) {
-    //apply forces
     speedX += 2 * forces.getX * speedModifierX / simulationRate;
     speedY += 2 * forces.getY * speedModifierY / simulationRate;
     //apply dynamic friction
@@ -412,6 +483,12 @@ class PhisicsEngine {
     //change coordinates
     x += speedX / simulationRate;
     y += speedY / simulationRate;
+
+    //remove forces done applying
+    forces.trim();
+
+    //decrease cooldowns
+    if (jumpCooldown > 0) jumpCooldown--;
   }
 
   void walk(int walkDirection, double speedModifierX) {
@@ -422,26 +499,40 @@ class PhisicsEngine {
   } //basic player interactions
 
   void _jumpUp() {
-    forces.y["jump"] = Force(
-        accelerationValue: jumpAcceleration,
-        durationInTicks: simulationRate ~/ 8);
+    if (jumpCooldown == 0) {
+      forces.y["jump"] = Force(
+          accelerationValue: jumpAcceleration,
+          durationInTicks: simulationRate ~/ 8);
+      jumpCooldown = simulationRate ~/ 2;
+      speedY = 0;
+    }
   }
 
   void _jumpRight() {
-    forces.y["jump"] = Force(
-        accelerationValue: jumpAcceleration / 1.412,
-        durationInTicks: simulationRate ~/ 8);
-    forces.x["jump"] = Force(
-        accelerationValue: -jumpAcceleration / 1.412,
-        durationInTicks: simulationRate ~/ 8);
+    if (jumpCooldown == 0) {
+      forces.y["jump"] = Force(
+          accelerationValue: jumpAcceleration / 1.412,
+          durationInTicks: simulationRate ~/ 8);
+      forces.x["jump"] = Force(
+          accelerationValue: -jumpAcceleration / 1.412,
+          durationInTicks: simulationRate ~/ 8);
+      jumpCooldown = simulationRate ~/ 2;
+      speedX = 0;
+      speedY = 0;
+    }
   }
 
   void _jumpLeft() {
-    forces.y["jump"] = Force(
-        accelerationValue: jumpAcceleration / 1.412,
-        durationInTicks: simulationRate ~/ 8);
-    forces.x["jump"] = Force(
-        accelerationValue: jumpAcceleration / 1.412,
-        durationInTicks: simulationRate ~/ 8);
+    if (jumpCooldown == 0) {
+      forces.y["jump"] = Force(
+          accelerationValue: jumpAcceleration / 1.412,
+          durationInTicks: simulationRate ~/ 8);
+      forces.x["jump"] = Force(
+          accelerationValue: jumpAcceleration / 1.412,
+          durationInTicks: simulationRate ~/ 8);
+      jumpCooldown = simulationRate ~/ 2;
+      speedX = 0;
+      speedY = 0;
+    }
   }
 }
