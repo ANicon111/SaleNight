@@ -214,6 +214,7 @@ class PhisicsEngine {
 
   //jump cooldown
   int jumpCooldown = 0;
+  int sideJumpCooldown = 0;
 
   //objects: things that collide with the player
   List<GameObject> gameObjects;
@@ -489,6 +490,7 @@ class PhisicsEngine {
 
     //decrease cooldowns
     if (jumpCooldown > 0) jumpCooldown--;
+    if (sideJumpCooldown > 0) sideJumpCooldown--;
   }
 
   void walk(int walkDirection, double speedModifierX) {
@@ -509,28 +511,28 @@ class PhisicsEngine {
   }
 
   void _jumpRight() {
-    if (jumpCooldown == 0) {
+    if (sideJumpCooldown == 0) {
       forces.y["jump"] = Force(
           accelerationValue: jumpAcceleration / 1.412,
           durationInTicks: simulationRate ~/ 8);
       forces.x["jump"] = Force(
           accelerationValue: -jumpAcceleration / 1.412,
           durationInTicks: simulationRate ~/ 8);
-      jumpCooldown = simulationRate ~/ 2;
+      sideJumpCooldown = simulationRate ~/ 2;
       speedX = 0;
       speedY = 0;
     }
   }
 
   void _jumpLeft() {
-    if (jumpCooldown == 0) {
+    if (sideJumpCooldown == 0) {
       forces.y["jump"] = Force(
           accelerationValue: jumpAcceleration / 1.412,
           durationInTicks: simulationRate ~/ 8);
       forces.x["jump"] = Force(
           accelerationValue: jumpAcceleration / 1.412,
           durationInTicks: simulationRate ~/ 8);
-      jumpCooldown = simulationRate ~/ 2;
+      sideJumpCooldown = simulationRate ~/ 2;
       speedX = 0;
       speedY = 0;
     }
