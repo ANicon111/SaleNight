@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:salenight/definitions.dart';
 import 'package:salenight/logic.dart';
+import 'package:salenight/rendering.dart';
 import 'package:salenight/stages.dart';
 
+Map<String, ui.Image?> textures = {};
 void main() {
   runApp(const GameRoot());
 }
@@ -65,9 +68,11 @@ class _GameRendererState extends State<GameRenderer> {
       ..jumpAcceleration = stage.jumpAcceleration
       ..fluidFriction = stage.fluidFriction
       ..spawnForces = stage.spawnForces
-      ..gameObjects = stage.gameObjects.toList()
+      ..gameObjects =
+          ((stage.gameObjects)..sort(((a, b) => a.zIndex - b.zIndex))).toList()
       ..keyboard = RawKeyboard.instance;
     simulation.respawn();
+    setState(() {});
   }
 
   @override
@@ -75,12 +80,6 @@ class _GameRendererState extends State<GameRenderer> {
     if (refreshTimer?.isActive ?? true) {
       refreshTimer?.cancel();
     }
-    refreshTimer = Timer.periodic(
-      Duration(microseconds: 1e6 ~/ framesPerSecond),
-      (_) {
-        setState(() {});
-      },
-    );
     simulation = PhisicsEngine(
       onGameOver: handleGameOver,
       w: 0,
@@ -107,9 +106,12 @@ class _GameRendererState extends State<GameRenderer> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        CustomPaint(
-          foregroundPainter: Painter(simulation),
+        Containrr(
           size: MediaQuery.of(context).size,
+          assetFolders: const ["textures/"],
+          simulation: simulation,
+          relativeSize: true,
+          refreshRate: framesPerSecond,
         ),
         gameOver
             ? Center(
@@ -248,71 +250,4 @@ class _GameRendererState extends State<GameRenderer> {
       ],
     );
   }
-}
-
-class Painter extends CustomPainter {
-  PhisicsEngine simulation;
-  Painter(this.simulation);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    double u = size.shortestSide / 1000;
-
-    //draw objects
-    for (GameObject obj in simulation.gameObjects) {
-      if (obj.shop) {
-        canvas.drawRect(
-          Rect.fromCenter(
-              center: Offset(
-                size.width / 2 +
-                    64 * (obj.x + simulation.x - simulation.speedX * 0.02) * u,
-                size.height / 2 -
-                    64 * (obj.y - simulation.y - simulation.speedY * 0.02) * u,
-              ),
-              width: 64 * obj.w * u,
-              height: 64 * obj.h * u),
-          Paint()..color = obj.visited ? Colors.amber : Colors.teal,
-        );
-      } else if (obj.checkpoint) {
-        canvas.drawRect(
-          Rect.fromCenter(
-              center: Offset(
-                size.width / 2 +
-                    64 * (obj.x + simulation.x - simulation.speedX * 0.02) * u,
-                size.height / 2 -
-                    64 * (obj.y - simulation.y - simulation.speedY * 0.02) * u,
-              ),
-              width: 64 * obj.w * u,
-              height: 64 * obj.h * u),
-          Paint()..color = obj.visited ? Colors.red : Colors.red.shade300,
-        );
-      } else {
-        canvas.drawRect(
-          Rect.fromCenter(
-              center: Offset(
-                size.width / 2 +
-                    64 * (obj.x + simulation.x - simulation.speedX * 0.02) * u,
-                size.height / 2 -
-                    64 * (obj.y - simulation.y - simulation.speedY * 0.02) * u,
-              ),
-              width: 64 * obj.w * u,
-              height: 64 * obj.h * u),
-          Paint()..color = obj.color,
-        );
-      }
-    }
-
-    //draw player
-    canvas.drawRect(
-      Rect.fromCenter(
-          center: Offset(size.width / 2 - 64 * simulation.speedX * 0.02 * u,
-              size.height / 2 + 64 * simulation.speedY * 0.02 * u),
-          width: 64 * u * simulation.w,
-          height: 64 * u * simulation.h),
-      Paint()..color = Colors.red,
-    );
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }

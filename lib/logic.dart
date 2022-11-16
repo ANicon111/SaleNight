@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:salenight/rendering.dart';
 
 class GameObject {
   double x,
@@ -24,9 +25,12 @@ class GameObject {
       shop,
       checkpoint,
       visited = false;
-  Color color;
-  String texture;
+  int zIndex, textureVariant;
+  Color? color;
   Force forceX, forceY;
+  String texture;
+  Duration animationDuration;
+  ImageRepeat repeat;
   GameObject({
     required this.x,
     required this.y,
@@ -41,7 +45,7 @@ class GameObject {
     this.forceY = const Force(accelerationValue: 0, durationInTicks: 0),
     this.speedCapX = PhisicsEngine.speedCap,
     this.speedCapY = PhisicsEngine.speedCap,
-    this.color = Colors.black,
+    this.color,
     this.texture = "",
     this.passthrough = false,
     this.jumpable = true,
@@ -51,6 +55,10 @@ class GameObject {
     this.shop = false,
     this.checkpoint = false,
     this.translucent = false,
+    this.zIndex = 0,
+    this.textureVariant = 0,
+    this.animationDuration = const Duration(seconds: 1),
+    this.repeat = ImageRepeat.repeat,
   });
   GameObject get copy {
     return GameObject(
@@ -77,6 +85,10 @@ class GameObject {
       translucent: translucent,
       forceX: forceX.copy,
       forceY: forceY.copy,
+      zIndex: zIndex,
+      textureVariant: textureVariant,
+      animationDuration: animationDuration,
+      repeat: repeat,
     );
   }
 }
@@ -203,8 +215,6 @@ class PhisicsEngine {
   ForceList forces = ForceList(x: {}, y: {});
   ForceList spawnForces;
 
-  //friction: friction simply opposes to movement in any direction
-
   //fluid friction, proportional to the square of the speed
   double fluidFriction;
 
@@ -215,6 +225,9 @@ class PhisicsEngine {
   //jump cooldown
   int jumpCooldown = 0;
   int sideJumpCooldown = 0;
+
+  //scale: rendering scale
+  double scale = 5;
 
   //objects: things that collide with the player
   List<GameObject> gameObjects;
@@ -245,6 +258,22 @@ class PhisicsEngine {
 
   void dispose() {
     phisicsTimer?.cancel();
+  }
+
+  //rendering element getter
+  ContainrrElement getRenderingElement(int i) {
+    GameObject obj = gameObjects[i];
+    return ContainrrElement(
+      size: Size(scale * obj.w, scale * obj.h),
+      offset: Offset(scale * (obj.x + x - speedX * 0.01),
+          -scale * (obj.y - y - speedY * 0.01)),
+      color: obj.color,
+      name: obj.texture,
+      variant: obj.textureVariant,
+      repeat: obj.repeat,
+      animationDuration: obj.animationDuration,
+      centered: true,
+    );
   }
 
   //respawn function
