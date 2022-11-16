@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:salenight/logic.dart';
 
 class Stage {
-  List<GameObject> gameObjects;
-  double walkAcceleration,
+  final List<GameObject> gameObjects;
+  final double walkAcceleration,
       jumpAcceleration,
       fluidFriction,
       w,
       h,
       spawnX,
       spawnY;
-  ForceList spawnForces;
+  final ForceList spawnForces;
   Stage({
     required this.gameObjects,
     required this.spawnForces,
@@ -23,9 +23,18 @@ class Stage {
     this.spawnY = 0,
   });
   Stage get copy {
-    Stage copy = this;
-    copy.gameObjects =
-        List.generate(gameObjects.length, (index) => gameObjects[index].copy);
+    Stage copy = Stage(
+      gameObjects:
+          List.generate(gameObjects.length, (index) => gameObjects[index].copy),
+      spawnForces: spawnForces,
+      walkAcceleration: walkAcceleration,
+      jumpAcceleration: jumpAcceleration,
+      fluidFriction: fluidFriction,
+      w: w,
+      h: h,
+      spawnX: spawnX,
+      spawnY: spawnY,
+    );
     return copy;
   }
 }
@@ -93,7 +102,8 @@ Map<String, Stage> stages = {
           y: 8,
           w: 1,
           h: 1,
-          shop: true,
+          destination: true,
+          texture: "textures/destination_off",
         ),
         GameObject(
           x: 5,
@@ -101,6 +111,7 @@ Map<String, Stage> stages = {
           w: 1,
           h: 1,
           checkpoint: true,
+          texture: "textures/checkpoint_off",
         ),
         GameObject(
           x: 5,

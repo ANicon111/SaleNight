@@ -18,8 +18,11 @@ class GameRoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
+    return MaterialApp(
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      themeMode: ThemeMode.system,
+      home: const Scaffold(
         body: GameRenderer(),
       ),
     );
@@ -68,8 +71,9 @@ class _GameRendererState extends State<GameRenderer> {
       ..jumpAcceleration = stage.jumpAcceleration
       ..fluidFriction = stage.fluidFriction
       ..spawnForces = stage.spawnForces
-      ..gameObjects =
-          ((stage.gameObjects)..sort(((a, b) => a.zIndex - b.zIndex))).toList()
+      ..gameObjects = ((stage.copy.gameObjects)
+            ..sort(((a, b) => a.zIndex - b.zIndex)))
+          .toList()
       ..keyboard = RawKeyboard.instance;
     simulation.respawn();
     setState(() {});

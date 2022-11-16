@@ -22,7 +22,7 @@ class GameObject {
       sideJumpable,
       walkable,
       deadly,
-      shop,
+      destination,
       checkpoint,
       visited = false;
   int zIndex, textureVariant;
@@ -52,7 +52,7 @@ class GameObject {
     this.sideJumpable = true,
     this.walkable = true,
     this.deadly = false,
-    this.shop = false,
+    this.destination = false,
     this.checkpoint = false,
     this.translucent = false,
     this.zIndex = 0,
@@ -80,7 +80,7 @@ class GameObject {
       sideJumpable: sideJumpable,
       walkable: walkable,
       deadly: deadly,
-      shop: shop,
+      destination: destination,
       checkpoint: checkpoint,
       translucent: translucent,
       forceX: forceX.copy,
@@ -262,7 +262,7 @@ class PhisicsEngine {
 
   //rendering element getter
   ContainrrElement getRenderingElement(int i) {
-    GameObject obj = gameObjects[i];
+    GameObject obj = gameObjects[i].copy;
     return ContainrrElement(
       size: Size(scale * obj.w, scale * obj.h),
       offset: Offset(scale * (obj.x + x - speedX * 0.01),
@@ -323,6 +323,7 @@ class PhisicsEngine {
           leftOfObject >= leftOfPlayer) {
         //checkpoint handling
         if (obj.checkpoint) {
+          obj.texture = "textures/checkpoint_on";
           if (!obj.visited) {
             spawnX = -obj.x;
             spawnY = obj.y;
@@ -335,10 +336,11 @@ class PhisicsEngine {
         obj.visited = true;
 
         //flag handling
-        if (obj.shop) {
+        if (obj.destination) {
+          obj.texture = "textures/destination_on";
           bool allShopsVisited() {
             for (GameObject obj in gameObjects) {
-              if (obj.shop && !obj.visited) return false;
+              if (obj.destination && !obj.visited) return false;
             }
             return true;
           }
